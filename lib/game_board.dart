@@ -20,6 +20,18 @@ class _GameBoardState extends State<GameBoard> {
 
   late List<List<ChessPiece?>> board;
 
+  //the currently selectede piece on the chess board,
+  // si no es seleccionado es null
+  ChessPiece? selectedPiece;
+
+  //the row index of the selected piece
+  //valor default, es que no se ha seleccionado nada
+  int selectedRow = -1;
+
+  //the col index of the selected piece
+  //valor default, es que no se ha seleccionado nada
+  int selectedCol = -1;
+
   //inicializar le board
   @override
   void initState() {
@@ -131,6 +143,18 @@ class _GameBoardState extends State<GameBoard> {
     board = newBoard;
   }
 
+  //USER SELECTED una pieza
+  void pieceSelected(int row, int col) {
+    setState(() {
+      //solo selecciona si hay algo en la posicion
+      if (board[row][col] != null) {
+        selectedPiece = board[row][col];
+        selectedRow = row;
+        selectedCol = col;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,9 +169,14 @@ class _GameBoardState extends State<GameBoard> {
             int row = index ~/ 8;
             int col = index % 8;
 
+            //checar si el cuadrado es seleccionado
+            bool isSelected = selectedRow == row && selectedCol == col;
+
             return Square(
               isWhite: isWhite(index),
               piece: board[row][col],
+              isSelected: isSelected,
+              onTap: () => pieceSelected(row, col),
             );
           }),
     );
