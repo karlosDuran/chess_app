@@ -5,7 +5,9 @@ import 'package:chess_app/components/piece.dart'; // Importa el componente de pi
 import 'package:chess_app/components/square.dart'; // Importa el componente de cuadrado del tablero.
 import 'package:chess_app/helper/helper_methods.dart'; // Importa métodos de ayuda.
 import 'package:chess_app/values/colors.dart'; // Importa los valores de color utilizados en la aplicación.
-import 'package:flutter/material.dart'; // Importa el paquete de material de Flutter.
+import 'package:flutter/material.dart';
+
+import 'components/dead_piece.dart'; // Importa el paquete de material de Flutter.
 
 class GameBoard extends StatefulWidget {
   const GameBoard({super.key}); // Constructor del widget GameBoard.
@@ -34,6 +36,15 @@ class _GameBoardState extends State<GameBoard> {
   // lista de movimientos validos por pieza
   //cada movimiento es representado por una lista con row y column
   List<List<int>> validMoves = [];
+
+  //lista de piezas que a tomado el jugador negro
+  List<ChessPiece> whitePiecesTaken = [];
+
+  //lista de piezas qqu a tomado el jugador privilegiado
+  List<ChessPiece> blackPiecesTaken = [];
+
+  //a boolean to indicate quien va, si los negros o blancos
+  bool isWhiteTurn = true;
 
   // Inicializa el tablero.
   @override
@@ -164,11 +175,33 @@ class _GameBoardState extends State<GameBoard> {
   // Método que se llama cuando el usuario selecciona una pieza.
   void pieceSelected(int row, int col) {
     setState(() {
-      // Solo selecciona si hay una pieza en la posición.
-      if (board[row][col] != null) {
-        selectedPiece = board[row][col]; // Almacena la pieza seleccionada.
-        selectedRow = row; // Almacena la fila de la pieza seleccionada.
-        selectedCol = col; // Almacena la columna de la pieza seleccionada.
+      // Verifica si no hay ninguna pieza seleccionada y si hay una pieza en la casilla clicada.
+      if (selectedPiece == null && board[row][col] != null) {
+        // Si no hay pieza seleccionada (selectedPiece es null) y hay una pieza en la casilla (board[row][col] no es null),
+        // entonces seleccionamos la pieza en esa casilla.
+        if (board[row][col]!.isWhite == isWhiteTurn) {
+          selectedPiece = board[row][
+              col]; // Almacena la pieza seleccionada en la variable selectedPiece.
+          selectedRow =
+              row; // Almacena la fila de la pieza seleccionada en selectedRow.
+          selectedCol =
+              col; // Almacena la columna de la pieza seleccionada en selectedCol.
+        }
+      }
+
+// Si ya hay una pieza seleccionada, verifica si la nueva casilla clicada tiene una pieza del mismo color.
+      else if (board[row][col] != null &&
+          board[row][col]!.isWhite == selectedPiece!.isWhite) {
+        // Aquí estamos comprobando dos cosas:
+        // 1. Si hay una pieza en la nueva casilla (board[row][col] no es null).
+        // 2. Si la pieza en la nueva casilla es del mismo color que la pieza ya seleccionada (isWhite).
+
+        selectedPiece = board[row]
+            [col]; // Almacena la nueva pieza seleccionada en selectedPiece.
+        selectedRow =
+            row; // Almacena la fila de la nueva pieza seleccionada en selectedRow.
+        selectedCol =
+            col; // Almacena la columna de la nueva pieza seleccionada en selectedCol.
       }
 
       //si hayuna pieza sleccionada y elegimos un square que es valido se mueve ahi
@@ -195,12 +228,13 @@ class _GameBoardState extends State<GameBoard> {
 
     switch (piece.type) {
       case ChessPieceType.pawn:
-        // pueden moverce adelante si no hay nada
+        // Pueden moverse hacia adelante si no hay nada en la casilla.
         if (isInBoard(row + direction, col) &&
             board[row + direction][col] == null) {
           candidateMoves.add([row + direction, col]);
         }
-        //pueden moverse 2 adelantes si estan en la posicion inicial
+
+        // Pueden moverse 2 casillas hacia adelante si están en la posición inicial.
         if ((row == 1 && !piece.isWhite) || (row == 6 && piece.isWhite)) {
           if (isInBoard(row + 2 * direction, col) &&
               board[row + 2 * direction][col] == null &&
@@ -208,20 +242,22 @@ class _GameBoardState extends State<GameBoard> {
             candidateMoves.add([row + 2 * direction, col]);
           }
         }
-        //pueden matar diagonalmente izquierda
+
+        // Pueden capturar diagonalmente a la izquierda.
         if (isInBoard(row + direction, col - 1) &&
             board[row + direction][col - 1] != null &&
-            !board[row + direction][col - 1]!.isWhite) {
+            board[row + direction][col - 1]!.isWhite != piece.isWhite) {
           candidateMoves.add([row + direction, col - 1]);
         }
-        //pa la derehca
+
+        // Pueden capturar diagonalmente a la derecha.
         if (isInBoard(row + direction, col + 1) &&
             board[row + direction][col + 1] != null &&
-            !board[row + direction][col + 1]!.isWhite) {
+            board[row + direction][col + 1]!.isWhite != piece.isWhite) {
           candidateMoves.add([row + direction, col + 1]);
         }
-
         break;
+
       case ChessPieceType.rook:
         //horizontal y vertical too ez
         var directions = [
@@ -381,6 +417,17 @@ class _GameBoardState extends State<GameBoard> {
 
 // mover la piezas
   void movePiece(int newRow, int newCol) {
+    //si el spot tenia un enemigo
+    if (board[newRow][newCol] != null) {
+      //añadir captura
+      var capturedPiece = board[newRow][newCol];
+      if (capturedPiece!.isWhite) {
+        whitePiecesTaken.add(capturedPiece);
+      } else {
+        blackPiecesTaken.add(capturedPiece);
+      }
+    }
+
     //mover la pieza y quitar el antiguo
     board[newRow][newCol] = selectedPiece;
     board[selectedRow][selectedCol] = null;
@@ -392,6 +439,9 @@ class _GameBoardState extends State<GameBoard> {
       selectedCol = -1;
       validMoves = [];
     });
+
+    // cambiar de turno
+    isWhiteTurn = !isWhiteTurn;
   }
 
   @override
@@ -399,38 +449,73 @@ class _GameBoardState extends State<GameBoard> {
     return Scaffold(
       backgroundColor:
           backgroundColor, // Establece el color de fondo del tablero.
-      body: GridView.builder(
-          itemCount: 8 * 8, // Total de celdas en el tablero (64).
-          physics:
-              const NeverScrollableScrollPhysics(), // Desactiva el desplazamiento del GridView.
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 8), // Define que el tablero tendrá 8 columnas.
-          itemBuilder: (context, index) {
-            // Obtiene la posición de fila y columna de este cuadrado.
-            int row = index ~/ 8; // Calcula la fila.
-            int col = index % 8; // Calcula la columna.
+      body: Column(
+        children: [
+          // white pieces taken
+          Expanded(
+            child: GridView.builder(
+              itemCount: whitePiecesTaken.length,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 8),
+              itemBuilder: (context, index) => DeadPiece(
+                imagePath: whitePiecesTaken[index].imagePath,
+                isWhite: true,
+              ),
+            ),
+          ),
+          // centrar el chess board
+          Expanded(
+            flex: 3,
+            child: GridView.builder(
+                itemCount: 8 * 8, // Total de celdas en el tablero (64).
+                physics:
+                    const NeverScrollableScrollPhysics(), // Desactiva el desplazamiento del GridView.
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount:
+                        8), // Define que el tablero tendrá 8 columnas.
+                itemBuilder: (context, index) {
+                  // Obtiene la posición de fila y columna de este cuadrado.
+                  int row = index ~/ 8; // Calcula la fila.
+                  int col = index % 8; // Calcula la columna.
 
-            // Verifica si el cuadrado es seleccionado.
-            bool isSelected = selectedRow == row && selectedCol == col;
+                  // Verifica si el cuadrado es seleccionado.
+                  bool isSelected = selectedRow == row && selectedCol == col;
 
-            bool isValidMove = false;
-            for (var position in validMoves) {
-              if (position[0] == row && position[1] == col) {
-                isValidMove = true;
-              }
-            }
-            return Square(
-              isWhite:
-                  isWhite(index), // Determina si el cuadrado es blanco o negro.
-              piece: board[row]
-                  [col], // Asigna la pieza en la posición correspondiente.
-              isSelected:
-                  isSelected, // Indica si el cuadrado está seleccionado.
-              isValidMove: isValidMove,
-              onTap: () => pieceSelected(row,
-                  col), // Llama al método pieceSelected al tocar el cuadrado.
-            );
-          }),
+                  bool isValidMove = false;
+                  for (var position in validMoves) {
+                    if (position[0] == row && position[1] == col) {
+                      isValidMove = true;
+                    }
+                  }
+                  return Square(
+                    isWhite: isWhite(
+                        index), // Determina si el cuadrado es blanco o negro.
+                    piece: board[row][
+                        col], // Asigna la pieza en la posición correspondiente.
+                    isSelected:
+                        isSelected, // Indica si el cuadrado está seleccionado.
+                    isValidMove: isValidMove,
+                    onTap: () => pieceSelected(row,
+                        col), // Llama al método pieceSelected al tocar el cuadrado.
+                  );
+                }),
+          ),
+          //black pieces taken
+          Expanded(
+            child: GridView.builder(
+              itemCount: blackPiecesTaken.length,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 8),
+              itemBuilder: (context, index) => DeadPiece(
+                imagePath: blackPiecesTaken[index].imagePath,
+                isWhite: false,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

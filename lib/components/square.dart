@@ -48,10 +48,7 @@ class Square extends StatelessWidget {
             ? Image.asset(
                 piece!
                     .imagePath, // Carga la imagen de la pieza desde la ruta especificada.
-                color: piece!.isWhite
-                    ? Colors.white
-                    : Colors
-                        .black, // Establece el color de la imagen según el color de la pieza.
+                // Establece el color de la imagen según el color de la pieza.
               )
             : null, // Si no hay pieza, no se muestra nada.
       ),
