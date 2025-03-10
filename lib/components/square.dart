@@ -43,6 +43,7 @@ class Square extends StatelessWidget {
       onTap: onTap, // Llama a la función onTap cuando se toca el cuadrado.
       child: Container(
         color: squareColor, // Establece el color del cuadrado.
+        margin: EdgeInsets.all(isValidMove ? 6 : 0),
         child: piece != null // Verifica si hay una pieza en el cuadrado.
             ? Image.asset(
                 piece!

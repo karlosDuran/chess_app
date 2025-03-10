@@ -171,6 +171,12 @@ class _GameBoardState extends State<GameBoard> {
         selectedCol = col; // Almacena la columna de la pieza seleccionada.
       }
 
+      //si hayuna pieza sleccionada y elegimos un square que es valido se mueve ahi
+
+      else if (selectedPiece != null &&
+          validMoves.any((element) => element[0] == row && element[1] == col)) {
+        movePiece(row, col);
+      }
       //cuando seleccionas una pieza, muestra los movimientos validos
       validMoves =
           calculateRawValidMoves(selectedRow, selectedCol, selectedPiece);
@@ -181,6 +187,9 @@ class _GameBoardState extends State<GameBoard> {
   List<List<int>> calculateRawValidMoves(int row, int col, ChessPiece? piece) {
     List<List<int>> candidateMoves = [];
 
+    if (piece == null) {
+      return [];
+    }
     //las direcciones son diferentes dependiendo del color
     int direction = piece!.isWhite ? -1 : 1;
 
@@ -202,29 +211,187 @@ class _GameBoardState extends State<GameBoard> {
         //pueden matar diagonalmente izquierda
         if (isInBoard(row + direction, col - 1) &&
             board[row + direction][col - 1] != null &&
-            board[row + direction][col - 1]!.isWhite) {
+            !board[row + direction][col - 1]!.isWhite) {
           candidateMoves.add([row + direction, col - 1]);
         }
         //pa la derehca
         if (isInBoard(row + direction, col + 1) &&
             board[row + direction][col + 1] != null &&
-            board[row + direction][col + 1]!.isWhite) {
+            !board[row + direction][col + 1]!.isWhite) {
           candidateMoves.add([row + direction, col + 1]);
         }
 
         break;
       case ChessPieceType.rook:
+        //horizontal y vertical too ez
+        var directions = [
+          [-1, 0], //up
+          [1, 0], //down
+          [0, -1], //left
+          [0, 1] // right
+        ];
+
+        for (var direction in directions) {
+          var i = 1;
+          while (true) {
+            var newRow = row + i * direction[0];
+            var newCol = col + i * direction[1];
+            if (!isInBoard(newRow, newCol)) {
+              break;
+            }
+            if (board[newRow][newCol] != null) {
+              if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+                candidateMoves
+                    .add([newRow, newCol]); //para matar ponerse bellacoso
+              }
+              break;
+            }
+            candidateMoves.add([newRow, newCol]);
+            i++;
+          }
+        }
         break;
       case ChessPieceType.knight:
+        // se puede mover a 8 lugares pq se mueve en L
+        var knightMoves = [
+          [-2, -1], // arriba 2 izquierda 1
+          [-2, 1], // arriba 2 derecha 1
+          [-1, -2], // arriba 1 izquierda 2
+          [-1, 2], // arriba 1 derecha 2
+          [1, -2], //abajo 1 izquierda 2
+          [1, 2], //abajo 1 derecha 2
+          [2, -1], //abajo 2 izquierda 1
+          [2, 1] // adivina
+        ];
+        for (var move in knightMoves) {
+          var newRow = row + move[0];
+          var newCol = col + move[1];
+          if (!isInBoard(newRow, newCol)) {
+            continue;
+          }
+          if (board[newRow][newCol] != null) {
+            if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+              candidateMoves.add([newRow, newCol]); //matar a la vrg
+            }
+            continue;
+          }
+          candidateMoves.add([newRow, newCol]);
+        }
         break;
       case ChessPieceType.bishop:
+        var directions = [
+          [-1, -1],
+          [-1, 1],
+          [1, -1],
+          [1, 1],
+        ];
+        for (var direction in directions) {
+          var i = 1;
+          while (true) {
+            var newRow = row + i * direction[0];
+            var newCol = col + i * direction[1];
+            if (!isInBoard(newRow, newCol)) {
+              break;
+            }
+            if (board[newRow][newCol] != null) {
+              if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+                candidateMoves
+                    .add([newRow, newCol]); //para matar ponerse bellacoso
+              }
+              break; // es el mismo color, simio no mata simio
+            }
+            candidateMoves.add([newRow, newCol]);
+            i++;
+          }
+        }
+
         break;
       case ChessPieceType.queen:
+        var directions = [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+          [-1, -1],
+          [-1, 1],
+          [1, -1],
+          [1, 1],
+        ];
+
+        for (var direction in directions) {
+          var i = 1;
+          while (true) {
+            var newRow = row + i * direction[0];
+            var newCol = col + i * direction[1];
+            if (!isInBoard(newRow, newCol)) {
+              break;
+            }
+            if (board[newRow][newCol] != null) {
+              if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+                candidateMoves
+                    .add([newRow, newCol]); //para matar ponerse bellacoso
+              }
+              break; // es el mismo color, simio no mata simio
+            }
+            candidateMoves.add([newRow, newCol]);
+            i++;
+          }
+        }
         break;
       case ChessPieceType.king:
+        var directions = [
+          [-1, 0], // Arriba
+          [1, 0], // Abajo
+          [0, -1], // Izquierda
+          [0, 1], // Derecha
+          [-1, -1], // Arriba izquierda
+          [-1, 1], // Arriba derecha
+          [1, -1], // Abajo izquierda
+          [1, 1], // Abajo derecha
+        ];
+
+        for (var direction in directions) {
+          var newRow = row + direction[0];
+          var newCol = col + direction[1];
+
+          // Verifica si la nueva posición está dentro del tablero
+          if (!isInBoard(newRow, newCol)) {
+            continue; // Continúa con la siguiente dirección
+          }
+
+          // Verifica si hay una pieza en la nueva posición
+          if (board[newRow][newCol] != null) {
+            // Si la pieza es del oponente, puede ser capturada
+            if (board[newRow][newCol]!.isWhite != piece.isWhite) {
+              candidateMoves
+                  .add([newRow, newCol]); // Agrega la posición para capturar
+            }
+            // Si la pieza es del mismo color, no se puede mover a esa posición
+            continue; // Continúa con la siguiente dirección
+          }
+
+          // Si la casilla está vacía, se puede mover
+          candidateMoves.add([newRow, newCol]);
+        }
+
         break;
     }
     return candidateMoves;
+  }
+
+// mover la piezas
+  void movePiece(int newRow, int newCol) {
+    //mover la pieza y quitar el antiguo
+    board[newRow][newCol] = selectedPiece;
+    board[selectedRow][selectedCol] = null;
+
+    //clear selection
+    setState(() {
+      selectedPiece = null;
+      selectedRow = -1;
+      selectedCol = -1;
+      validMoves = [];
+    });
   }
 
   @override
