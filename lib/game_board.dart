@@ -45,6 +45,10 @@ class _GameBoardState extends State<GameBoard> {
 
   //a boolean to indicate quien va, si los negros o blancos
   bool isWhiteTurn = true;
+  List<int> whiteKingPosition = [7, 4];
+  List<int> blackKingPosition = [0, 4];
+  bool checkStatus = false;
+  //posicicon inicial del rey, seguir siguiendolo
 
   // Inicializa el tablero.
   @override
@@ -211,8 +215,8 @@ class _GameBoardState extends State<GameBoard> {
         movePiece(row, col);
       }
       //cuando seleccionas una pieza, muestra los movimientos validos
-      validMoves =
-          calculateRawValidMoves(selectedRow, selectedCol, selectedPiece);
+      validMoves = calculateRealValidMoves(
+          selectedRow, selectedCol, selectedPiece, true);
     });
   }
 
@@ -224,7 +228,7 @@ class _GameBoardState extends State<GameBoard> {
       return [];
     }
     //las direcciones son diferentes dependiendo del color
-    int direction = piece!.isWhite ? -1 : 1;
+    int direction = piece.isWhite ? -1 : 1;
 
     switch (piece.type) {
       case ChessPieceType.pawn:
@@ -415,6 +419,29 @@ class _GameBoardState extends State<GameBoard> {
     return candidateMoves;
   }
 
+//calcular los REALES
+  List<List<int>> calculateRealValidMoves(
+      int row, int col, ChessPiece? piece, bool checkSimulation) {
+    List<List<int>> realValideMoves = [];
+    List<List<int>> candidateMoves = calculateRawValidMoves(row, col, piece);
+
+    //despues hay que filtrar si hay king chek}
+    if (checkSimulation) {
+      for (var move in candidateMoves) {
+        int endRow = move[0];
+        int endCol = move[1];
+
+        //esto va a ver si el proximo movimiento es safe
+        if (simulatedMoveIsSafe(piece!, row, col, endRow, endCol)) {
+          realValideMoves.add(move);
+        }
+      }
+    } else {
+      realValideMoves = candidateMoves;
+    }
+    return realValideMoves;
+  }
+
 // mover la piezas
   void movePiece(int newRow, int newCol) {
     //si el spot tenia un enemigo
@@ -427,11 +454,26 @@ class _GameBoardState extends State<GameBoard> {
         blackPiecesTaken.add(capturedPiece);
       }
     }
+    // ver si la que se mueve es rey
+    if (selectedPiece!.type == ChessPieceType.king) {
+      //update donde puede moverse el rey
+      if (selectedPiece!.isWhite) {
+        whiteKingPosition = [newRow, newCol];
+      } else {
+        blackKingPosition = [newRow, newCol];
+      }
+    }
 
     //mover la pieza y quitar el antiguo
     board[newRow][newCol] = selectedPiece;
     board[selectedRow][selectedCol] = null;
 
+    //ver si el rey esta siendo atacado
+    if (isKingInCheck(!isWhiteTurn)) {
+      checkStatus = true;
+    } else {
+      checkStatus = false;
+    }
     //clear selection
     setState(() {
       selectedPiece = null;
@@ -442,6 +484,74 @@ class _GameBoardState extends State<GameBoard> {
 
     // cambiar de turno
     isWhiteTurn = !isWhiteTurn;
+  }
+
+  //esta en jaque el rey?
+  bool isKingInCheck(bool isWhiteKing) {
+    //get de position of the king
+    List<int> kingPosition =
+        isWhiteKing ? whiteKingPosition : blackKingPosition;
+
+    //checar si algun enemigo esta atacando al rey
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        if (board[i][j] == null || board[i][j]!.isWhite == isWhiteKing) {
+          continue;
+        }
+
+        List<List<int>> pieceValidMoves =
+            calculateRealValidMoves(i, j, board[i][j], false);
+
+        //checar si el rey esta en los movimientos validos
+        if (pieceValidMoves.any((move) =>
+            move[0] == kingPosition[0] && move[1] == kingPosition[1])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+// simular para ver si el movimiento es safe y no mandar el king a la muerte
+  bool simulatedMoveIsSafe(
+      ChessPiece piece, int startRow, int startCol, int endRow, int endCol) {
+    //guardar el estado del board, por si no es safe volver a como estaba
+    ChessPiece? originalDestinationPiece = board[endRow][endCol];
+
+    //si la pieza es el rey save its current position and update the new one
+    List<int>? originalKingPosition;
+    if (piece.type == ChessPieceType.king) {
+      originalKingPosition =
+          piece.isWhite ? whiteKingPosition : blackKingPosition;
+
+      //update the king position
+      if (piece.isWhite) {
+        whiteKingPosition = [endRow, endCol];
+      } else {
+        blackKingPosition = [endRow, endCol];
+      }
+    }
+    //simulate the move
+    board[endRow][endCol] = piece;
+    board[startRow][startCol] = null;
+
+    //checkar si nuestro rey esta bajo atake
+    bool kingInCheck = isKingInCheck(piece.isWhite);
+
+    //restaurar el board original
+    board[endRow][endCol] = originalDestinationPiece;
+    board[startRow][startCol] = piece;
+    //if the piece was the king restore it  original position
+
+    if (piece.type == ChessPieceType.king) {
+      if (piece.isWhite) {
+        whiteKingPosition = originalKingPosition!;
+      } else {
+        blackKingPosition = originalKingPosition!;
+      }
+    }
+    //si el king esta en jaque = verdad, significa no safe move
+    return !kingInCheck;
   }
 
   @override
@@ -464,6 +574,9 @@ class _GameBoardState extends State<GameBoard> {
               ),
             ),
           ),
+          //checar
+          //Text(checkStatus ? "check" : "lol"),
+
           // centrar el chess board
           Expanded(
             flex: 3,
