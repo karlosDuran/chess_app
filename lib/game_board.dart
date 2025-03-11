@@ -481,6 +481,21 @@ class _GameBoardState extends State<GameBoard> {
       selectedCol = -1;
       validMoves = [];
     });
+    //check if es jaque despues del turno
+    if (isCheckMate(!isWhiteTurn)) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("jaque mate"),
+          actions: [
+            TextButton(
+              onPressed: resetGame,
+              child: const Text("jugar de nuevo"),
+            ),
+          ],
+        ),
+      );
+    }
 
     // cambiar de turno
     isWhiteTurn = !isWhiteTurn;
@@ -552,6 +567,47 @@ class _GameBoardState extends State<GameBoard> {
     }
     //si el king esta en jaque = verdad, significa no safe move
     return !kingInCheck;
+  }
+
+  //checar el jaque mate
+  bool isCheckMate(bool isWhiteKing) {
+    //si el rey no esta en jaque para que moverle
+    if (!isKingInCheck(isWhiteKing)) {
+      return false;
+    }
+    //si hay un legarl move no es chacke mate
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        //skip empty squares and pieces the other color
+        if (board[i][j] == null || board[i][j]!.isWhite != isWhiteKing) {
+          continue;
+        }
+
+        List<List<int>> pieceValidMoves =
+            calculateRealValidMoves(i, j, board[i][j], true);
+
+        //si esta lista tiene algun valid move no has perdido
+        if (pieceValidMoves.isNotEmpty) {
+          return false;
+        }
+      }
+    }
+
+    //no hay movimientos legales ya valio verga
+    return true;
+  }
+
+  //resetear el juego
+  void resetGame() {
+    Navigator.pop(context);
+    _initializeBoard();
+    checkStatus = false;
+    whitePiecesTaken.clear();
+    blackPiecesTaken.clear();
+    whiteKingPosition = [7, 4];
+    blackKingPosition = [0, 4];
+    isWhiteTurn = true;
+    setState(() {});
   }
 
   @override
