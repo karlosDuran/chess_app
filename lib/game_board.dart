@@ -50,6 +50,9 @@ class _GameBoardState extends State<GameBoard> {
   bool checkStatus = false;
   //posicicon inicial del rey, seguir siguiendolo
 
+  List<int>?
+      enPassantVulnerable; // Guardará las coordenadas [fila, columna] del peón vulnerable.
+
   // Inicializa el tablero.
   @override
   void initState() {
@@ -259,6 +262,14 @@ class _GameBoardState extends State<GameBoard> {
             board[row + direction][col + 1] != null &&
             board[row + direction][col + 1]!.isWhite != piece.isWhite) {
           candidateMoves.add([row + direction, col + 1]);
+        }
+
+        // Movimiento "En Passant"
+        if (enPassantVulnerable != null &&
+            row == (piece.isWhite ? 3 : 4) && // Fila correcta para "En Passant"
+            (col - 1 == enPassantVulnerable![1] ||
+                col + 1 == enPassantVulnerable![1])) {
+          candidateMoves.add([row + direction, enPassantVulnerable![1]]);
         }
 
         break;
@@ -500,6 +511,18 @@ class _GameBoardState extends State<GameBoard> {
         blackPiecesTaken.add(capturedPiece);
       }
     }
+    // Manejar "En Passant"
+    if (selectedPiece!.type == ChessPieceType.pawn &&
+        enPassantVulnerable != null &&
+        newRow ==
+            (selectedPiece!.isWhite
+                ? 2
+                : 5) && // Fila de destino para "En Passant"
+        newCol == enPassantVulnerable![1]) {
+      // Captura "En Passant"
+      board[enPassantVulnerable![0]][enPassantVulnerable![1]] =
+          null; // Elimina al peón capturado
+    }
     // ver si la que se mueve es rey
     if (selectedPiece!.type == ChessPieceType.king) {
       //update donde puede moverse el rey
@@ -513,13 +536,21 @@ class _GameBoardState extends State<GameBoard> {
         selectedPiece!.type == ChessPieceType.pawn &&
         (newRow == 0 || newRow == 7)) {
       // Pasar la pieza seleccionada al diálogo
-
       showPromotionDialog(newRow, newCol, selectedPiece!);
       return;
     }
     //mover la pieza y quitar el antiguo
     board[newRow][newCol] = selectedPiece;
     board[selectedRow][selectedCol] = null;
+
+    // Marcar peones vulnerables a "En Passant"
+    if (selectedPiece!.type == ChessPieceType.pawn &&
+        ((selectedPiece!.isWhite && newRow == selectedRow - 2) ||
+            (!selectedPiece!.isWhite && newRow == selectedRow + 2))) {
+      enPassantVulnerable = [newRow, newCol]; // Marcar el peón como vulnerable
+    } else {
+      enPassantVulnerable = null; // Reiniciar si no aplica
+    }
 
     //ver si el rey esta siendo atacado
     if (isKingInCheck(!isWhiteTurn)) {
