@@ -260,6 +260,7 @@ class _GameBoardState extends State<GameBoard> {
             board[row + direction][col + 1]!.isWhite != piece.isWhite) {
           candidateMoves.add([row + direction, col + 1]);
         }
+
         break;
 
       case ChessPieceType.rook:
@@ -442,6 +443,51 @@ class _GameBoardState extends State<GameBoard> {
     return realValideMoves;
   }
 
+  void showPromotionDialog(int row, int col, ChessPiece piece) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Selecciona una pieza de promoción'),
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              for (var type in [
+                ChessPieceType.queen,
+                ChessPieceType.rook,
+                ChessPieceType.bishop,
+                ChessPieceType.knight
+              ])
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      board[row][col] = ChessPiece(
+                        type: type,
+                        isWhite: piece.isWhite,
+                        imagePath:
+                            "lib/images/${piece.isWhite ? 'white' : 'black'}-${type.name}.png",
+                      );
+                      board[selectedRow][selectedCol] = null;
+                      selectedPiece = null;
+                      selectedRow = -1;
+                      selectedCol = -1;
+                    });
+                    Navigator.pop(context);
+                    isWhiteTurn = !isWhiteTurn;
+                  },
+                  child: Image.asset(
+                    "lib/images/${piece.isWhite ? 'white' : 'black'}-${type.name}.png",
+                    width: 50,
+                    height: 50,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
 // mover la piezas
   void movePiece(int newRow, int newCol) {
     //si el spot tenia un enemigo
@@ -463,7 +509,14 @@ class _GameBoardState extends State<GameBoard> {
         blackKingPosition = [newRow, newCol];
       }
     }
+    if (selectedPiece != null &&
+        selectedPiece!.type == ChessPieceType.pawn &&
+        (newRow == 0 || newRow == 7)) {
+      // Pasar la pieza seleccionada al diálogo
 
+      showPromotionDialog(newRow, newCol, selectedPiece!);
+      return;
+    }
     //mover la pieza y quitar el antiguo
     board[newRow][newCol] = selectedPiece;
     board[selectedRow][selectedCol] = null;
@@ -474,6 +527,7 @@ class _GameBoardState extends State<GameBoard> {
     } else {
       checkStatus = false;
     }
+
     //clear selection
     setState(() {
       selectedPiece = null;
