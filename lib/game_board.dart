@@ -223,6 +223,43 @@ class _GameBoardState extends State<GameBoard> {
     });
   }
 
+  bool canCastle(bool isWhiteKing, bool isKingSide) {
+    // Posiciones iniciales del rey y las torres
+    List<int> kingPosition =
+        isWhiteKing ? whiteKingPosition : blackKingPosition;
+    int row = kingPosition[0];
+    int kingCol = kingPosition[1];
+    int rookCol = isKingSide ? 7 : 0;
+
+    // Verifica que el rey y la torre no se hayan movido
+    if (board[row][kingCol]?.type != ChessPieceType.king ||
+        board[row][rookCol]?.type != ChessPieceType.rook ||
+        board[row][kingCol]?.hasMoved == true ||
+        board[row][rookCol]?.hasMoved == true) {
+      return false;
+    }
+
+    // Verifica que las casillas entre el rey y la torre estén vacías
+    int direction = isKingSide ? 1 : -1;
+    for (int col = kingCol + direction; col != rookCol; col += direction) {
+      if (board[row][col] != null) {
+        return false;
+      }
+    }
+
+    // Verifica que el rey no pase por casillas atacadas
+    for (int col = kingCol; col != kingCol + 2 * direction; col += direction) {
+      // Simula el movimiento del rey
+      if (simulatedMoveIsSafe(board[row][kingCol]!, row, kingCol, row, col)) {
+        continue;
+      } else {
+        return false; // Si alguna posición está en jaque, no es válido
+      }
+    }
+
+    return true; // Si todas las verificaciones se pasan, el enroque es válido
+  }
+
   //calcular raw movimientos validos
   List<List<int>> calculateRawValidMoves(int row, int col, ChessPiece? piece) {
     List<List<int>> candidateMoves = [];
@@ -392,40 +429,41 @@ class _GameBoardState extends State<GameBoard> {
         break;
       case ChessPieceType.king:
         var directions = [
-          [-1, 0], // Arriba
-          [1, 0], // Abajo
-          [0, -1], // Izquierda
-          [0, 1], // Derecha
-          [-1, -1], // Arriba izquierda
-          [-1, 1], // Arriba derecha
-          [1, -1], // Abajo izquierda
-          [1, 1], // Abajo derecha
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+          [-1, -1],
+          [-1, 1],
+          [1, -1],
+          [1, 1],
         ];
 
         for (var direction in directions) {
           var newRow = row + direction[0];
           var newCol = col + direction[1];
 
-          // Verifica si la nueva posición está dentro del tablero
-          if (!isInBoard(newRow, newCol)) {
-            continue; // Continúa con la siguiente dirección
-          }
+          if (!isInBoard(newRow, newCol)) continue;
 
-          // Verifica si hay una pieza en la nueva posición
           if (board[newRow][newCol] != null) {
-            // Si la pieza es del oponente, puede ser capturada
             if (board[newRow][newCol]!.isWhite != piece.isWhite) {
-              candidateMoves
-                  .add([newRow, newCol]); // Agrega la posición para capturar
+              candidateMoves.add([newRow, newCol]);
             }
-            // Si la pieza es del mismo color, no se puede mover a esa posición
-            continue; // Continúa con la siguiente dirección
+            continue;
           }
 
-          // Si la casilla está vacía, se puede mover
           candidateMoves.add([newRow, newCol]);
         }
 
+        // Verificar enroque corto (hacia la derecha)
+        if (!piece.hasMoved && canCastle(piece.isWhite, true)) {
+          candidateMoves.add([row, col + 2]);
+        }
+
+        // Verificar enroque largo (hacia la izquierda)
+        if (!piece.hasMoved && canCastle(piece.isWhite, false)) {
+          candidateMoves.add([row, col - 2]);
+        }
         break;
     }
     return candidateMoves;
@@ -524,12 +562,26 @@ class _GameBoardState extends State<GameBoard> {
           null; // Elimina al peón capturado
     }
     // ver si la que se mueve es rey
+    if (selectedPiece!.type == ChessPieceType.king &&
+        (newCol == selectedCol + 2 || newCol == selectedCol - 2)) {
+      bool isKingSide = newCol == selectedCol + 2;
+      int rookCol = isKingSide ? 7 : 0;
+      int newRookCol = isKingSide ? newCol - 1 : newCol + 1;
+
+      // Mueve la torre en el enroque
+      board[selectedRow][newRookCol] = board[selectedRow][rookCol];
+      board[selectedRow][rookCol] = null;
+      //marcar pq sino puedes hacer enroque varias veces
+      board[selectedRow][newRookCol]!.hasMoved = true;
+    }
     if (selectedPiece!.type == ChessPieceType.king) {
       //update donde puede moverse el rey
       if (selectedPiece!.isWhite) {
         whiteKingPosition = [newRow, newCol];
+        board[selectedRow][selectedCol]!.hasMoved = true;
       } else {
         blackKingPosition = [newRow, newCol];
+        board[selectedRow][selectedCol]!.hasMoved = true;
       }
     }
     if (selectedPiece != null &&
